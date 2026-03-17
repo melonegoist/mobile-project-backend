@@ -7,10 +7,10 @@ info:
     name: BrokerApp Team
 
 servers:
-  - url: https://api.brokerapp.com/
-    description: Production server
   - url: http://localhost:8080/
     description: Local development server
+  - url: https://api.brokerapp.com/
+    description: Production server
 
 tags:
   - name: Authentication
@@ -111,9 +111,9 @@ components:
         - email
       properties:
         id:
-          type: string
-          format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174000"
+          type: integer
+          format: int64
+          example: 1001
         username:
           type: string
           example: "john_doe"
@@ -149,8 +149,9 @@ components:
         - currency
       properties:
         userId:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
+          example: 1001
         balance:
           type: number
           format: double
@@ -217,8 +218,9 @@ components:
         - timestamp
       properties:
         tradeId:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
+          example: 50001
         symbol:
           type: string
         quantity:
@@ -1068,7 +1070,9 @@ paths:
                           type: object
                           properties:
                             id:
-                              type: string
+                              type: integer
+                              format: int64
+                              example: 30001
                             type:
                               type: string
                             amount:

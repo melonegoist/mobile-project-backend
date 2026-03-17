@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.math.BigDecimal
 import java.time.OffsetDateTime
-import java.util.*
 
 @Service
 class AuthService(
@@ -114,7 +113,7 @@ class AuthService(
 
     private fun mapToApiUser(user: User): ApiUser {
         return ApiUser(
-            id = UUID.randomUUID(),
+            id = user.id,
             username = user.username,
             email = user.email,
             firstName = user.firstName,
