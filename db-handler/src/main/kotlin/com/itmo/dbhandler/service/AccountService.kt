@@ -124,6 +124,15 @@ class AccountService(
         )
     }
 
+    fun getAccountEntity(userId: Long): com.itmo.dbhandler.entity.Account {
+        return accountRepository.findByUserId(userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found")
+    }
+
+    fun saveAccount(account: com.itmo.dbhandler.entity.Account) {
+        accountRepository.save(account)
+    }
+
     private fun calculatePortfolioValue(userId: Long): PortfolioSummary {
         return portfolioService.calculateProfitLoss(userId)
     }

@@ -141,6 +141,11 @@ class PortfolioService(
         }
     }
 
+    fun getHoldingEntity(userId: Long, symbol: String): PortfolioItemEntity {
+        return portfolioItemRepository.findByUserIdAndStockSymbol(userId, symbol)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Position not found")
+    }
+
     fun calculateProfitLoss(userId: Long): PortfolioSummary {
         val totalInvested = portfolioItemRepository.getTotalInvestedValue(userId) ?: BigDecimal.ZERO
         val currentTotal = portfolioItemRepository.getCurrentTotalValue(userId) ?: BigDecimal.ZERO
