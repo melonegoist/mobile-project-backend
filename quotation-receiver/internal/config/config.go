@@ -13,6 +13,10 @@ type AppConfig struct {
 	BatchFrameCount int
 	MinDelay        time.Duration
 	ErrorBackoff    time.Duration
+	RedisAddr       string
+	RedisPassword   string
+	RedisDB         int
+	RedisChannel    string
 }
 
 func Load() (AppConfig, error) {
@@ -45,12 +49,24 @@ func Load() (AppConfig, error) {
 		return AppConfig{}, fmt.Errorf("POLL_ERROR_BACKOFF_MS must be >= 0")
 	}
 
+	redisDB, err := getIntEnv("REDIS_DB", 0)
+	if err != nil {
+		return AppConfig{}, err
+	}
+	if redisDB < 0 {
+		return AppConfig{}, fmt.Errorf("REDIS_DB must be >= 0")
+	}
+
 	return AppConfig{
 		DevicePath:      getStringEnv("DEVICE_PATH", "/dev/price_delta"),
 		InitialPrice:    initialPrice,
 		BatchFrameCount: batchFrameCount,
 		MinDelay:        time.Duration(minDelayMs) * time.Millisecond,
 		ErrorBackoff:    time.Duration(errorBackoffMs) * time.Millisecond,
+		RedisAddr:       getStringEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
+		RedisDB:         redisDB,
+		RedisChannel:    getStringEnv("REDIS_CHANNEL", "quotes.ticks"),
 	}, nil
 }
 

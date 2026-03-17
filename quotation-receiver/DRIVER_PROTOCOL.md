@@ -12,6 +12,10 @@ If a variable is not set, the default value is used.
 | `BATCH_FRAME_COUNT` | int | `16` | Number of 12-byte frames expected per one low-level read buffer. Final read buffer size is `12 * BATCH_FRAME_COUNT`. Must be `> 0`. |
 | `POLL_MIN_DELAY_MS` | int | `1` | Minimal delay (ms) between successful polling iterations. Must be `>= 0`. |
 | `POLL_ERROR_BACKOFF_MS` | int | `10` | Delay (ms) after retryable read errors. Must be `>= 0`. |
+| `REDIS_ADDR` | string | `localhost:6379` | Redis server address for Pub/Sub publishing. |
+| `REDIS_PASSWORD` | string | `` | Redis password (optional). |
+| `REDIS_DB` | int | `0` | Redis logical database index. Must be `>= 0`. |
+| `REDIS_CHANNEL` | string | `quotes.ticks` | Redis Pub/Sub channel where JSON ticker events are published. |
 
 ## Driver payload format (binary)
 

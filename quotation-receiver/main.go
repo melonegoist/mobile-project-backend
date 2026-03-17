@@ -11,6 +11,7 @@ import (
 	"quotation-receiver/internal/config"
 	"quotation-receiver/internal/driver"
 	"quotation-receiver/internal/processor"
+	"quotation-receiver/internal/pubsub"
 )
 
 const (
@@ -26,7 +27,19 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	frameProcessor := processor.NewFrameProcessor(appCfg.InitialPrice)
+	redisPublisher, err := pubsub.NewRedisPublisher(
+		ctx,
+		appCfg.RedisAddr,
+		appCfg.RedisPassword,
+		appCfg.RedisDB,
+		appCfg.RedisChannel,
+	)
+	if err != nil {
+		log.Fatalf("init redis publisher: %v", err)
+	}
+	defer redisPublisher.Close()
+
+	frameProcessor := processor.NewFrameProcessor(appCfg.InitialPrice, redisPublisher)
 
 	cfg := driver.PollConfig{
 		DevicePath:   appCfg.DevicePath,

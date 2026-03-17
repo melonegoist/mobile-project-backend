@@ -20,12 +20,18 @@ type FrameProcessor struct {
 	pending      []byte
 	currentPrice map[string]float32
 	initialPrice float32
+	publisher    EventPublisher
 }
 
-func NewFrameProcessor(initialPrice float32) *FrameProcessor {
+type EventPublisher interface {
+	Publish(eventJSON []byte) error
+}
+
+func NewFrameProcessor(initialPrice float32, publisher EventPublisher) *FrameProcessor {
 	return &FrameProcessor{
 		currentPrice: make(map[string]float32),
 		initialPrice: initialPrice,
+		publisher:    publisher,
 	}
 }
 
@@ -45,6 +51,12 @@ func (p *FrameProcessor) HandlePayload(payload []byte) error {
 		eventJSON, err := ticker.SerializeEvent(tickerSymbol, price, time.Now())
 		if err != nil {
 			return fmt.Errorf("serialize ticker event: %w", err)
+		}
+
+		if p.publisher != nil {
+			if err := p.publisher.Publish(eventJSON); err != nil {
+				return fmt.Errorf("publish event: %w", err)
+			}
 		}
 
 		log.Printf("ticker event: %s", eventJSON)
