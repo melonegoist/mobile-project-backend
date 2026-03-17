@@ -11,18 +11,21 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 
 @Service
 class AccountService(
     private val accountRepository: AccountRepository,
     private val accountTransactionRepository: AccountTransactionRepository,
+    private val portfolioService: PortfolioService,
 ) {
 
     fun getAccount(): Account {
         val userId = SecurityUtils.getCurrentUserId()
         val account = accountRepository.findByUserId(userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found")
+        val portfolioSummary = calculatePortfolioValue(userId)
 
         return Account(
             userId = userId,
@@ -34,8 +37,8 @@ class AccountService(
                 else -> Account.Currency.USD
             },
             availableBalance = account.balance.toDouble(),
-            totalProfitLoss = 0.0,
-            totalProfitLossPercent = 0.0
+            totalProfitLoss = portfolioSummary.totalProfitLoss.toDouble(),
+            totalProfitLossPercent = portfolioSummary.totalProfitLossPercent.toDouble(),
         )
     }
 
@@ -119,5 +122,14 @@ class AccountService(
             hasNext = transactions.hasNext(),
             hasPrevious = transactions.hasPrevious()
         )
+    }
+
+    private fun calculatePortfolioValue(userId: Long): PortfolioSummary {
+        return portfolioService.calculateProfitLoss(userId)
+    }
+
+    private fun calculateLockedFunds(userId: Long): BigDecimal {
+        // реализовать позже при добавлении ордеров
+        return BigDecimal.ZERO
     }
 }
