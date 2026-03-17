@@ -61,3 +61,37 @@ Full frame (12 bytes):
 ```text
 41 41 50 4C 00 00 00 00 00 00 C0 3F
 ```
+
+## Redis Pub/Sub publication format
+
+Each parsed driver frame is converted to a JSON event and published to Redis Pub/Sub.
+
+### Channel
+
+- Redis channel name is taken from `REDIS_CHANNEL` (default: `quotes.ticks`).
+
+### Message payload
+
+The message body is UTF-8 JSON with the following schema:
+
+| Field | Type | Description |
+|---|---|---|
+| `ticker` | string | Ticker symbol parsed from driver frame. |
+| `price` | float32 | Current accumulated ticker price after applying delta. |
+| `timestamp` | string (RFC3339) | UTC timestamp when event was produced. |
+
+Example published payload:
+
+```json
+{
+  "ticker": "AAPL",
+  "price": 101.25,
+  "timestamp": "2026-03-17T12:34:56.789Z"
+}
+```
+
+Equivalent redis-cli subscription test:
+
+```bash
+redis-cli SUBSCRIBE quotes.ticks
+```
