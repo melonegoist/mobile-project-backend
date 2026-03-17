@@ -7,26 +7,35 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"quotation-receiver/internal/config"
 	"quotation-receiver/internal/driver"
+	"quotation-receiver/internal/processor"
+)
+
+const (
+	frameSize = 12
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg := driver.PollConfig{
-		DevicePath:   "/dev/price_delta",
-		BufferSize:   256,
-		MinDelay:     time.Millisecond,
-		ErrorBackoff: 10 * time.Millisecond,
+	appCfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
 	}
 
-	err := driver.PollDriver(ctx, cfg, func(payload []byte) error {
-		log.Printf("driver payload: %q", string(payload))
-		return nil
-	})
+	frameProcessor := processor.NewFrameProcessor(appCfg.InitialPrice)
+
+	cfg := driver.PollConfig{
+		DevicePath:   appCfg.DevicePath,
+		BufferSize:   frameSize * appCfg.BatchFrameCount,
+		MinDelay:     appCfg.MinDelay,
+		ErrorBackoff: appCfg.ErrorBackoff,
+	}
+
+	err = driver.PollDriver(ctx, cfg, frameProcessor.HandlePayload)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatalf("polling failed: %v", err)
 	}
