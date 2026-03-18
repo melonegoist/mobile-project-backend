@@ -1,0 +1,1316 @@
+openapi: 3.0.0
+info:
+  title: BrokerApp API
+  description: API для трейдингового приложения - управление акциями, портфелем и пользователями
+  version: 1.0.0
+  contact:
+    name: BrokerApp Team
+
+servers:
+  - url: http://localhost:8080/
+    description: Local development server
+  - url: https://api.brokerapp.com/
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Операции с аутентификацией пользователей
+  - name: Market
+    description: Получение рыночных данных и торговля
+  - name: Portfolio
+    description: Управление портфелем пользователя
+  - name: Profile
+    description: Профиль пользователя и статистика
+  - name: Account
+    description: Управление счетом и балансом
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Используйте JWT токен, полученный при логине
+
+  schemas:
+    Stock:
+      type: object
+      required:
+        - symbol
+        - name
+        - price
+        - changePercent
+      properties:
+        symbol:
+          type: string
+          example: "AAPL"
+          description: Тикер акции
+        name:
+          type: string
+          example: "Apple Inc."
+          description: Полное название компании
+        price:
+          type: number
+          format: double
+          example: 175.50
+          description: Текущая цена
+        changePercent:
+          type: number
+          format: double
+          example: 2.5
+          description: Изменение цены в процентах за последние 24 часа
+        volume:
+          type: integer
+          example: 12500000
+          description: Объем торгов
+        marketCap:
+          type: number
+          format: double
+          example: 2850000000000
+          description: Рыночная капитализация
+
+    PortfolioItem:
+      type: object
+      required:
+        - stock
+        - quantity
+        - averageBuyPrice
+      properties:
+        stock:
+          $ref: '#/components/schemas/Stock'
+        quantity:
+          type: integer
+          example: 5
+          description: Количество акций в портфеле
+        averageBuyPrice:
+          type: number
+          format: double
+          example: 170.25
+          description: Средняя цена покупки
+        totalValue:
+          type: number
+          format: double
+          example: 877.50
+          description: Общая стоимость позиции (price * quantity)
+        profitLoss:
+          type: number
+          format: double
+          example: 26.25
+          description: Прибыль/убыток в абсолютном значении
+        profitLossPercent:
+          type: number
+          format: double
+          example: 3.08
+          description: Прибыль/убыток в процентах
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - email
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1001
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        avatarUrl:
+          type: string
+          format: uri
+          example: "https://api.brokerapp.com/avatars/john.png"
+        registrationDate:
+          type: string
+          format: date-time
+          example: "2024-03-15T10:30:00Z"
+        accountType:
+          type: string
+          enum: [investor, trader, beginner]
+          default: investor
+          example: "investor"
+
+    Account:
+      type: object
+      required:
+        - userId
+        - balance
+        - currency
+      properties:
+        userId:
+          type: integer
+          format: int64
+          example: 1001
+        balance:
+          type: number
+          format: double
+          example: 10000.00
+        availableBalance:
+          type: number
+          format: double
+          example: 9122.50
+          description: Доступный баланс (с учетом открытых позиций)
+        currency:
+          type: string
+          enum: [USD, EUR, RUB]
+          default: USD
+          example: "USD"
+        totalProfitLoss:
+          type: number
+          format: double
+          example: 1250.75
+          description: Общая прибыль/убыток по портфелю
+        totalProfitLossPercent:
+          type: number
+          format: double
+          example: 12.5
+          description: Общая прибыль/убыток в процентах
+
+    TradeRequest:
+      type: object
+      required:
+        - symbol
+        - quantity
+        - tradeType
+      properties:
+        symbol:
+          type: string
+          example: "AAPL"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 5
+        tradeType:
+          type: string
+          enum: [buy, sell]
+          example: "buy"
+        orderType:
+          type: string
+          enum: [market, limit]
+          default: market
+          example: "market"
+        limitPrice:
+          type: number
+          format: double
+          example: 170.00
+          description: Обязательно при orderType = limit
+
+    TradeResponse:
+      type: object
+      required:
+        - tradeId
+        - symbol
+        - quantity
+        - price
+        - totalAmount
+        - status
+        - timestamp
+      properties:
+        tradeId:
+          type: integer
+          format: int64
+          example: 50001
+        symbol:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: double
+          description: Цена исполнения сделки
+        totalAmount:
+          type: number
+          format: double
+          description: Общая сумма сделки (price * quantity)
+        status:
+          type: string
+          enum: [completed, pending, rejected]
+          example: "completed"
+        message:
+          type: string
+          example: "Trade executed successfully"
+        timestamp:
+          type: string
+          format: date-time
+
+    UserStats:
+      type: object
+      required:
+        - totalTrades
+        - successfulTrades
+        - winRate
+        - totalVolume
+      properties:
+        totalTrades:
+          type: integer
+          example: 42
+        successfulTrades:
+          type: integer
+          example: 38
+        winRate:
+          type: number
+          format: double
+          example: 90.48
+          description: Процент успешных сделок
+        totalVolume:
+          type: number
+          format: double
+          example: 250000.00
+          description: Общий объем торгов
+        bestTrade:
+          type: string
+          example: "TSLA +45.2%"
+        worstTrade:
+          type: string
+          example: "META -12.5%"
+        averageHoldingTime:
+          type: string
+          example: "5 days"
+        lastUpdated:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "john_doe"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - tokenType
+        - expiresIn
+        - user
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        tokenType:
+          type: string
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          example: 3600
+          description: Время жизни токена в секундах
+        refreshToken:
+          type: string
+          example: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "securePassword123"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Invalid request parameters"
+        details:
+          type: string
+          example: "Password must be at least 6 characters long"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        path:
+          type: string
+          example: "/api/v1/auth/login"
+
+    MarketSummary:
+      type: object
+      properties:
+        totalStocks:
+          type: integer
+          example: 1500
+        gainers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+          description: Топ 10 растущих акций
+        losers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+          description: Топ 10 падающих акций
+        mostActive:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+          description: Топ 10 самых активных по объему
+        marketStatus:
+          type: string
+          enum: [open, closed]
+          example: "open"
+        lastUpdated:
+          type: string
+          format: date-time
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 20
+        totalElements:
+          type: integer
+          example: 1500
+        totalPages:
+          type: integer
+          example: 75
+        hasNext:
+          type: boolean
+          example: true
+        hasPrevious:
+          type: boolean
+          example: false
+
+    WebSocketMessage:
+      type: object
+      required:
+        - type
+        - data
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [price_update, trade_update, account_update, market_status]
+          example: "price_update"
+        data:
+          type: object
+          description: Данные зависят от типа сообщения
+        timestamp:
+          type: string
+          format: date-time
+
+    PriceHistory:
+      type: object
+      required:
+        - symbol
+        - interval
+        - data
+      properties:
+        symbol:
+          type: string
+        interval:
+          type: string
+          enum: [1m, 5m, 15m, 1h, 4h, 1d, 1w]
+          example: "1d"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              open:
+                type: number
+              high:
+                type: number
+              low:
+                type: number
+              close:
+                type: number
+              volume:
+                type: integer
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Пользователь уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Вход в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Обновление JWT токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Новый токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Недействительный refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Выход из системы
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный выход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  /market/stocks:
+    get:
+      tags:
+        - Market
+      summary: Получение списка всех доступных акций
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Количество записей
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Смещение для пагинации
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [symbol, price, changePercent, volume]
+            default: symbol
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: sector
+          in: query
+          schema:
+            type: string
+            example: "technology"
+          description: Фильтр по сектору
+      responses:
+        '200':
+          description: Список акций
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Stock'
+
+  /market/stocks/{symbol}:
+    get:
+      tags:
+        - Market
+      summary: Получение детальной информации по конкретной акции
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "AAPL"
+      responses:
+        '200':
+          description: Детальная информация об акции
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stock'
+        '404':
+          description: Акция не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /market/stocks/{symbol}/history:
+    get:
+      tags:
+        - Market
+      summary: Получение исторических данных по акции
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          schema:
+            type: string
+            enum: [1d, 1w, 1m, 3m, 1y]
+            default: 1d
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Исторические данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceHistory'
+
+  /market/summary:
+    get:
+      tags:
+        - Market
+      summary: Получение сводки по рынку
+      responses:
+        '200':
+          description: Рыночная сводка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketSummary'
+
+  /trades:
+    post:
+      tags:
+        - Market
+      summary: Совершение сделки (покупка/продажа)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TradeRequest'
+      responses:
+        '200':
+          description: Сделка успешно выполнена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeResponse'
+        '400':
+          description: Ошибка в запросе (недостаточно средств и т.д.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trades/history:
+    get:
+      tags:
+        - Market
+      summary: Получение истории сделок пользователя
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: symbol
+          in: query
+          schema:
+            type: string
+        - name: tradeType
+          in: query
+          schema:
+            type: string
+            enum: [buy, sell]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: История сделок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TradeResponse'
+
+  /portfolio:
+    get:
+      tags:
+        - Portfolio
+      summary: Получение портфеля пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список активов в портфеле
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortfolioItem'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /portfolio/value:
+    get:
+      tags:
+        - Portfolio
+      summary: Получение общей стоимости портфеля
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Общая стоимость портфеля
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalValue:
+                    type: number
+                    example: 5250.75
+                  change:
+                    type: number
+                    example: 125.50
+                  changePercent:
+                    type: number
+                    example: 2.45
+                  currency:
+                    type: string
+                    example: "USD"
+                  lastUpdated:
+                    type: string
+                    format: date-time
+
+  /portfolio/holdings/{symbol}:
+    get:
+      tags:
+        - Portfolio
+      summary: Получение информации по конкретной позиции
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Информация о позиции
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioItem'
+        '404':
+          description: Позиция не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: Получение профиля текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    put:
+      tags:
+        - Profile
+      summary: Обновление профиля пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Профиль обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /profile/stats:
+    get:
+      tags:
+        - Profile
+      summary: Получение статистики пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+
+  /profile/avatar:
+    post:
+      tags:
+        - Profile
+      summary: Загрузка аватара пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Файл изображения
+      responses:
+        '200':
+          description: Аватар загружен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatarUrl:
+                    type: string
+                    format: uri
+
+  /account:
+    get:
+      tags:
+        - Account
+      summary: Получение информации о счете
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Информация о счете
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  /account/deposit:
+    post:
+      tags:
+        - Account
+      summary: Пополнение баланса
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  minimum: 10
+                  example: 1000.00
+                paymentMethod:
+                  type: string
+                  enum: [card, bank_transfer, crypto]
+                  default: card
+      responses:
+        '200':
+          description: Баланс пополнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  /account/withdraw:
+    post:
+      tags:
+        - Account
+      summary: Вывод средств
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  minimum: 10
+                  example: 500.00
+      responses:
+        '200':
+          description: Средства выведены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Недостаточно средств
+
+  /account/transactions:
+    get:
+      tags:
+        - Account
+      summary: История транзакций по счету
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [deposit, withdraw, trade]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: История транзакций
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              format: int64
+                              example: 30001
+                            type:
+                              type: string
+                            amount:
+                              type: number
+                            timestamp:
+                              type: string
+                              format: date-time
+                            status:
+                              type: string
+
+  /ws:
+    get:
+      tags:
+        - Market
+        - Portfolio
+      summary: WebSocket соединение для real-time обновлений
+      description: |
+        Подключитесь к этому endpoint для получения real-time обновлений:
+        - Цены акций
+        - Изменения в портфеле
+        - Статус рынка
+        - Уведомления о сделках
+      responses:
+        '101':
+          description: Переключение протоколов на WebSocket
+
+  # Настройки и предпочтения
+  /settings:
+    get:
+      tags:
+        - Profile
+      summary: Получение настроек пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Настройки пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: object
+                    properties:
+                      email:
+                        type: boolean
+                      push:
+                        type: boolean
+                      priceAlerts:
+                        type: boolean
+                  language:
+                    type: string
+                    enum: [en, ru, es, fr, de]
+                    default: en
+                  theme:
+                    type: string
+                    enum: [light, dark, system]
+                    default: system
+                  defaultOrderType:
+                    type: string
+                    enum: [market, limit]
+                    default: market
+                  riskLevel:
+                    type: string
+                    enum: [low, medium, high]
+                    default: medium
+
+    put:
+      tags:
+        - Profile
+      summary: Обновление настроек пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notifications:
+                  type: object
+                language:
+                  type: string
+                theme:
+                  type: string
+      responses:
+        '200':
+          description: Настройки обновлены
+
+  /watchlist:
+    get:
+      tags:
+        - Market
+      summary: Получение списка наблюдения пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список наблюдения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stock'
+
+    post:
+      tags:
+        - Market
+      summary: Добавление акции в список наблюдения
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - symbol
+              properties:
+                symbol:
+                  type: string
+      responses:
+        '200':
+          description: Акция добавлена
+
+  /watchlist/{symbol}:
+    delete:
+      tags:
+        - Market
+      summary: Удаление акции из списка наблюдения
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Акция удалена
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Проверка работоспособности API
+      responses:
+        '200':
+          description: API работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+# WebSocket сообщения (документация)
+x-webhooks:
+  priceUpdate:
+    post:
+      summary: Обновление цены акции
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: "price_update"
+                data:
+                  type: object
+                  properties:
+                    symbol:
+                      type: string
+                    price:
+                      type: number
+                    changePercent:
+                      type: number
+                    volume:
+                      type: integer
+                timestamp:
+                  type: string
+                  format: date-time
+
+  portfolioUpdate:
+    post:
+      summary: Обновление портфеля
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: "portfolio_update"
+                data:
+                  type: object
+                  properties:
+                    totalValue:
+                      type: number
+                    change:
+                      type: number
+                timestamp:
+                  type: string
+                  format: date-time
+
+  tradeNotification:
+    post:
+      summary: Уведомление о сделке
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: "trade_notification"
+                data:
+                  $ref: '#/components/schemas/TradeResponse'
+                timestamp:
+                  type: string
+                  format: date-time
