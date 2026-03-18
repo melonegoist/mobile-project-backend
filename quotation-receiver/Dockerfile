@@ -6,8 +6,8 @@ WORKDIR /app
 # Устанавливаем git и ca-certificates (нужны для go mod и HTTPS запросов)
 RUN apk add --no-cache git ca-certificates
 
-# Копируем файлы зависимостей первыми (для кэширования)
-COPY go.mod go.sum ./
+# Копируем файл зависимостей первым (для кэширования)
+COPY go.mod ./
 RUN go mod download
 
 # Копируем исходный код
