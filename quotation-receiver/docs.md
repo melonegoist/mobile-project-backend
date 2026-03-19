@@ -16,7 +16,7 @@ The service is split into small internal packages with clear responsibilities:
 - `main.go`: application wiring and startup.
 - `internal/config`: environment-based configuration loading and validation.
 - `internal/driver`: low-level polling loop over `/dev/...` via `read()`.
-- `internal/processor`: binary frame parsing and in-memory price accumulation.
+- `internal/processor`: binary frame parsing and price conversion from kopeycks to rubles.
 - `internal/ticker`: JSON serialization of ticker events.
 - `internal/pubsub`: Redis publisher implementation.
 
@@ -53,17 +53,16 @@ quotation-receiver/
 5. `FrameProcessor`:
    - buffers partial reads,
    - extracts fixed 12-byte frames,
-   - parses frame fields (`ticker`, `delta`),
-   - updates current ticker price in memory,
+  - parses frame fields (`ticker`, `price_kopecks`),
+  - converts integer kopecks into rubles,
    - serializes event to JSON via `ticker.SerializeEvent`.
 6. Serialized JSON is published to Redis channel using `publisher.Publish`.
 
 ## Runtime behavior details
 
 - The processor is resilient to split reads: one `read()` may contain half-frame, exact frame, or multiple frames.
-- Price is tracked per ticker in memory and updated as:
-  - `price = previous_price + delta`
-  - if ticker is new, `previous_price = INITIAL_PRICE`.
+- Frame price is interpreted as an absolute value in kopecks and converted as:
+  - `price_rub = price_kopecks / 100`.
 - On graceful shutdown signal (`SIGTERM`/`Ctrl+C`), polling stops through context cancellation.
 
 ## Configuration summary
@@ -71,7 +70,6 @@ quotation-receiver/
 Main configuration is provided through environment variables (see full protocol details in `interactions_protocol.md`):
 
 - `DEVICE_PATH`
-- `INITIAL_PRICE`
 - `BATCH_FRAME_COUNT`
 - `POLL_MIN_DELAY_MS`
 - `POLL_ERROR_BACKOFF_MS`

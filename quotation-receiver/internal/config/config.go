@@ -9,7 +9,6 @@ import (
 
 type AppConfig struct {
 	DevicePath      string
-	InitialPrice    float32
 	BatchFrameCount int
 	MinDelay        time.Duration
 	ErrorBackoff    time.Duration
@@ -20,11 +19,6 @@ type AppConfig struct {
 }
 
 func Load() (AppConfig, error) {
-	initialPrice, err := getFloat32Env("INITIAL_PRICE", 100.0)
-	if err != nil {
-		return AppConfig{}, err
-	}
-
 	batchFrameCount, err := getIntEnv("BATCH_FRAME_COUNT", 16)
 	if err != nil {
 		return AppConfig{}, err
@@ -59,7 +53,6 @@ func Load() (AppConfig, error) {
 
 	return AppConfig{
 		DevicePath:      getStringEnv("DEVICE_PATH", "/dev/price_delta"),
-		InitialPrice:    initialPrice,
 		BatchFrameCount: batchFrameCount,
 		MinDelay:        time.Duration(minDelayMs) * time.Millisecond,
 		ErrorBackoff:    time.Duration(errorBackoffMs) * time.Millisecond,
@@ -90,18 +83,4 @@ func getIntEnv(key string, defaultValue int) (int, error) {
 	}
 
 	return parsed, nil
-}
-
-func getFloat32Env(key string, defaultValue float32) (float32, error) {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue, nil
-	}
-
-	parsed, err := strconv.ParseFloat(value, 32)
-	if err != nil {
-		return 0, fmt.Errorf("parse %s: %w", key, err)
-	}
-
-	return float32(parsed), nil
 }
