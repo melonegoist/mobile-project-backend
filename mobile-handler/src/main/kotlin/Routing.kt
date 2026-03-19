@@ -2,9 +2,9 @@ package com.itmo
 
 import com.itmo.routing.configureProxyRoutes
 import com.itmo.routing.configureWebSocketRoute
-import io.ktor.server.application.*
+import org.gradle.internal.code.UserCodeApplicationContext
 
-fun Application.configureRouting() {
+fun UserCodeApplicationContext.Application.configureRouting() {
     configureProxyRoutes()
     configureWebSocketRoute()
 }
