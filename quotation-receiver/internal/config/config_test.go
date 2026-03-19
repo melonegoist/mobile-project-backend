@@ -11,7 +11,6 @@ func clearConfigEnv(t *testing.T) {
 
 	keys := []string{
 		"DEVICE_PATH",
-		"INITIAL_PRICE",
 		"BATCH_FRAME_COUNT",
 		"POLL_MIN_DELAY_MS",
 		"POLL_ERROR_BACKOFF_MS",
@@ -36,9 +35,6 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.DevicePath != "/dev/price_delta" {
 		t.Fatalf("DevicePath mismatch: %q", cfg.DevicePath)
 	}
-	if cfg.InitialPrice != float32(100.0) {
-		t.Fatalf("InitialPrice mismatch: %f", cfg.InitialPrice)
-	}
 	if cfg.BatchFrameCount != 16 {
 		t.Fatalf("BatchFrameCount mismatch: %d", cfg.BatchFrameCount)
 	}
@@ -62,7 +58,6 @@ func TestLoad_Defaults(t *testing.T) {
 func TestLoad_ParsesCustomValues(t *testing.T) {
 	clearConfigEnv(t)
 	t.Setenv("DEVICE_PATH", "/tmp/dev")
-	t.Setenv("INITIAL_PRICE", "42.5")
 	t.Setenv("BATCH_FRAME_COUNT", "8")
 	t.Setenv("POLL_MIN_DELAY_MS", "5")
 	t.Setenv("POLL_ERROR_BACKOFF_MS", "15")
@@ -77,7 +72,6 @@ func TestLoad_ParsesCustomValues(t *testing.T) {
 	}
 
 	if cfg.DevicePath != "/tmp/dev" ||
-		cfg.InitialPrice != float32(42.5) ||
 		cfg.BatchFrameCount != 8 ||
 		cfg.MinDelay != 5*time.Millisecond ||
 		cfg.ErrorBackoff != 15*time.Millisecond ||
@@ -98,19 +92,6 @@ func TestLoad_InvalidBatchCount(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 	if !strings.Contains(err.Error(), "BATCH_FRAME_COUNT") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestLoad_InvalidFloat(t *testing.T) {
-	clearConfigEnv(t)
-	t.Setenv("INITIAL_PRICE", "NaN-abc")
-
-	_, err := Load()
-	if err == nil {
-		t.Fatal("expected parse error")
-	}
-	if !strings.Contains(err.Error(), "INITIAL_PRICE") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

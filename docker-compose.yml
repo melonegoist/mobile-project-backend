@@ -41,6 +41,8 @@ services:
     build: ./quotation-receiver
     container_name: quotation-receiver
     restart: unless-stopped
+    devices:
+      - /dev/price_feed:/dev/price_feed
     environment:
       REDIS_ADDR: redis-db:6379
       REDIS_CHANNEL: quotes.ticks

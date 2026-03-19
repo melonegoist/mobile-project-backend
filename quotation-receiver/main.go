@@ -39,7 +39,7 @@ func main() {
 	}
 	defer redisPublisher.Close()
 
-	frameProcessor := processor.NewFrameProcessor(appCfg.InitialPrice, redisPublisher)
+	frameProcessor := processor.NewFrameProcessor(redisPublisher)
 
 	cfg := driver.PollConfig{
 		DevicePath:   appCfg.DevicePath,

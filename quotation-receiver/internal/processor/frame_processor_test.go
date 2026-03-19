@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"math"
 	"strings"
 	"testing"
 	"time"
@@ -28,61 +27,56 @@ func (p *publisherStub) Publish(eventJSON []byte) error {
 	return nil
 }
 
-func makeFrame(symbol string, delta float32) []byte {
+func makeFrame(symbol string, priceKopecks int32) []byte {
 	frame := make([]byte, frameSize)
 	copy(frame[:tickerSize], []byte(symbol))
-	binary.LittleEndian.PutUint32(frame[tickerSize:], math.Float32bits(delta))
+	binary.LittleEndian.PutUint32(frame[tickerSize:], uint32(priceKopecks))
 	return frame
 }
 
-func TestParseTickerDeltaFrame_Success(t *testing.T) {
-	frame := makeFrame("AAPL", 1.25)
+func TestParseTickerPriceFrame_Success(t *testing.T) {
+	frame := makeFrame("AAPL", 12345)
 
-	symbol, delta, err := parseTickerDeltaFrame(frame)
+	symbol, priceKopecks, err := parseTickerPriceFrame(frame)
 	if err != nil {
-		t.Fatalf("parseTickerDeltaFrame returned error: %v", err)
+		t.Fatalf("parseTickerPriceFrame returned error: %v", err)
 	}
 
 	if symbol != "AAPL" {
 		t.Fatalf("symbol mismatch: got %q", symbol)
 	}
-	if delta != float32(1.25) {
-		t.Fatalf("delta mismatch: got %f", delta)
+	if priceKopecks != int32(12345) {
+		t.Fatalf("price kopecks mismatch: got %d", priceKopecks)
 	}
 }
 
-func TestParseTickerDeltaFrame_InvalidSize(t *testing.T) {
-	_, _, err := parseTickerDeltaFrame([]byte{1, 2, 3})
+func TestParseTickerPriceFrame_InvalidSize(t *testing.T) {
+	_, _, err := parseTickerPriceFrame([]byte{1, 2, 3})
 	if err == nil {
 		t.Fatal("expected error for invalid frame size")
 	}
 }
 
-func TestParseTickerDeltaFrame_EmptyTicker(t *testing.T) {
+func TestParseTickerPriceFrame_EmptyTicker(t *testing.T) {
 	frame := make([]byte, frameSize)
-	binary.LittleEndian.PutUint32(frame[tickerSize:], math.Float32bits(1.0))
+	binary.LittleEndian.PutUint32(frame[tickerSize:], uint32(100))
 
-	_, _, err := parseTickerDeltaFrame(frame)
+	_, _, err := parseTickerPriceFrame(frame)
 	if err == nil {
 		t.Fatal("expected error for empty ticker")
 	}
 }
 
-func TestApplyDelta_UsesInitialAndAccumulates(t *testing.T) {
-	p := NewFrameProcessor(100, nil)
-
-	if got := p.applyDelta("AAPL", 1.5); got != float32(101.5) {
-		t.Fatalf("first price mismatch: got %f", got)
-	}
-	if got := p.applyDelta("AAPL", -0.5); got != float32(101.0) {
-		t.Fatalf("second price mismatch: got %f", got)
+func TestKopecksToRubles(t *testing.T) {
+	if got := kopecksToRubles(12345); got != float32(123.45) {
+		t.Fatalf("conversion mismatch: got %f", got)
 	}
 }
 
 func TestHandlePayload_ProcessesPendingAcrossCalls(t *testing.T) {
 	pub := &publisherStub{}
-	p := NewFrameProcessor(100, pub)
-	frame := makeFrame("MSFT", 2.0)
+	p := NewFrameProcessor(pub)
+	frame := makeFrame("MSFT", 200)
 
 	if err := p.HandlePayload(frame[:6]); err != nil {
 		t.Fatalf("first partial payload failed: %v", err)
@@ -106,7 +100,7 @@ func TestHandlePayload_ProcessesPendingAcrossCalls(t *testing.T) {
 	if event.Ticker != "MSFT" {
 		t.Fatalf("ticker mismatch: got %q", event.Ticker)
 	}
-	if event.Price != float32(102.0) {
+	if event.Price != float32(2.0) {
 		t.Fatalf("price mismatch: got %f", event.Price)
 	}
 	if time.Since(event.Timestamp) > 5*time.Second {
@@ -116,9 +110,9 @@ func TestHandlePayload_ProcessesPendingAcrossCalls(t *testing.T) {
 
 func TestHandlePayload_PublisherError(t *testing.T) {
 	pub := &publisherStub{err: errors.New("boom")}
-	p := NewFrameProcessor(100, pub)
+	p := NewFrameProcessor(pub)
 
-	err := p.HandlePayload(makeFrame("AAPL", 1.0))
+	err := p.HandlePayload(makeFrame("AAPL", 100))
 	if err == nil {
 		t.Fatal("expected publish error")
 	}

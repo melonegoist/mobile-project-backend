@@ -5,33 +5,29 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"quotation-receiver/internal/ticker"
 )
 
 const (
-	frameSize  = 12
-	tickerSize = 8
+	frameSize       = 12
+	tickerSize      = 8
+	kopecksPerRuble = 100
 )
 
 type FrameProcessor struct {
-	pending      []byte
-	currentPrice map[string]float32
-	initialPrice float32
-	publisher    EventPublisher
+	pending   []byte
+	publisher EventPublisher
 }
 
 type EventPublisher interface {
 	Publish(eventJSON []byte) error
 }
 
-func NewFrameProcessor(initialPrice float32, publisher EventPublisher) *FrameProcessor {
+func NewFrameProcessor(publisher EventPublisher) *FrameProcessor {
 	return &FrameProcessor{
-		currentPrice: make(map[string]float32),
-		initialPrice: initialPrice,
-		publisher:    publisher,
+		publisher: publisher,
 	}
 }
 
@@ -42,12 +38,12 @@ func (p *FrameProcessor) HandlePayload(payload []byte) error {
 		frame := p.pending[:frameSize]
 		p.pending = p.pending[frameSize:]
 
-		tickerSymbol, deltaValue, err := parseTickerDeltaFrame(frame)
+		tickerSymbol, priceKopecks, err := parseTickerPriceFrame(frame)
 		if err != nil {
 			return err
 		}
 
-		price := p.applyDelta(tickerSymbol, deltaValue)
+		price := kopecksToRubles(priceKopecks)
 		eventJSON, err := ticker.SerializeEvent(tickerSymbol, price, time.Now())
 		if err != nil {
 			return fmt.Errorf("serialize ticker event: %w", err)
@@ -65,7 +61,7 @@ func (p *FrameProcessor) HandlePayload(payload []byte) error {
 	return nil
 }
 
-func parseTickerDeltaFrame(frame []byte) (string, float32, error) {
+func parseTickerPriceFrame(frame []byte) (string, int32, error) {
 	if len(frame) != frameSize {
 		return "", 0, fmt.Errorf("invalid frame size: got %d, want %d", len(frame), frameSize)
 	}
@@ -75,20 +71,11 @@ func parseTickerDeltaFrame(frame []byte) (string, float32, error) {
 		return "", 0, fmt.Errorf("ticker is empty")
 	}
 
-	deltaBits := binary.LittleEndian.Uint32(frame[tickerSize:])
-	deltaValue := math.Float32frombits(deltaBits)
+	priceKopecks := int32(binary.LittleEndian.Uint32(frame[tickerSize:]))
 
-	return string(tickerBytes), deltaValue, nil
+	return string(tickerBytes), priceKopecks, nil
 }
 
-func (p *FrameProcessor) applyDelta(tickerSymbol string, deltaValue float32) float32 {
-	price, exists := p.currentPrice[tickerSymbol]
-	if !exists {
-		price = p.initialPrice
-	}
-
-	price += deltaValue
-	p.currentPrice[tickerSymbol] = price
-
-	return price
+func kopecksToRubles(priceKopecks int32) float32 {
+	return float32(priceKopecks) / kopecksPerRuble
 }
