@@ -1,13 +1,10 @@
 package com.itmo
 
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import com.itmo.routing.configureProxyRoutes
+import com.itmo.routing.configureWebSocketRoute
+import org.gradle.internal.code.UserCodeApplicationContext
 
-fun Application.configureRouting() {
-    routing {
-        get("/") {
-            call.respondText("Hello World!")
-        }
-    }
+fun UserCodeApplicationContext.Application.configureRouting() {
+    configureProxyRoutes()
+    configureWebSocketRoute()
 }

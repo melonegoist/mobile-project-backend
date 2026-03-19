@@ -3,4 +3,15 @@ ktor:
     modules:
       - com.itmo.ApplicationKt.module
   deployment:
-    port: 8080
+    port: 9090
+
+jwt:
+  secret: "default-secret-key-change-in-production-min-32-chars"
+
+dbhandler:
+  url: "http://localhost:8080"
+
+redis:
+  host: "localhost"
+  port: 6379
+  channel: "quotes.ticks"
