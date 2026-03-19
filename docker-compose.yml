@@ -1,4 +1,7 @@
 services:
+
+  # ─── Infrastructure ──────────────────────────────────────────────────────────
+
   redis:
     image: redis:7-alpine
     container_name: redis-db
@@ -8,7 +11,122 @@ services:
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: brokerapp
+      POSTGRES_USER: brokerapp
+      POSTGRES_PASSWORD: brokerapp_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brokerapp -d brokerapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend services ─────────────────────────────────────────────────────────
+
+  quotation-receiver:
+    build: ./quotation-receiver
+    container_name: quotation-receiver
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis-db:6379
+      REDIS_CHANNEL: quotes.ticks
+      INITIAL_PRICE: "100.0"
+      BATCH_FRAME_COUNT: "16"
+      POLL_MIN_DELAY_MS: "1"
+      POLL_ERROR_BACKOFF_MS: "10"
+      # DEVICE_PATH defaults to /dev/price_delta – mount the kernel module device
+      # when running on real hardware. For testing without the device, the service
+      # will log errors and back off; price updates simply won't be published.
+      DEVICE_PATH: ${PRICE_DEVICE_PATH:-/dev/price_delta}
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Uncomment if /dev/price_delta is present on the host:
+    # devices:
+    #   - /dev/price_delta:/dev/price_delta
+
+  db-handler:
+    build: ./db-handler
+    container_name: db-handler
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres-db:5432/brokerapp
+      DB_USERNAME: brokerapp
+      DB_PASSWORD: brokerapp_password
+      JWT_SECRET: ${JWT_SECRET:-brokerapp-jwt-secret-change-in-production-min-32-chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
+
+  mobile-handler:
+    build: ./mobile-handler
+    container_name: mobile-handler
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-brokerapp-jwt-secret-change-in-production-min-32-chars}
+      DB_HANDLER_URL: http://db-handler:8080
+      REDIS_HOST: redis-db
+      REDIS_PORT: "6379"
+      REDIS_CHANNEL: quotes.ticks
+    depends_on:
+      db-handler:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─── Load tester (disabled by default, start manually) ───────────────────────
+
+  load-tester:
+    build: ./load-tester
+    container_name: load-tester
+    restart: "no"
+    ports:
+      - "8081:8081"
+    environment:
+      TARGET_URL: http://mobile-handler:9090
+      TOTAL_USERS: ${TOTAL_USERS:-10000}
+      RAMP_UP_SECONDS: ${RAMP_UP_SECONDS:-300}
+      MIN_ACTION_DELAY_MS: ${MIN_ACTION_DELAY_MS:-1000}
+      MAX_ACTION_DELAY_MS: ${MAX_ACTION_DELAY_MS:-5000}
+      INITIAL_DEPOSIT: "100000.0"
+      AUTO_START: ${AUTO_START:-false}
+      WEBSOCKET_ENABLED: ${WEBSOCKET_ENABLED:-true}
+    depends_on:
+      mobile-handler:
+        condition: service_healthy
+    profiles:
+      - loadtest
 
 volumes:
   redis-data:
- 
+  postgres-data:
