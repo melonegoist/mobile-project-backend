@@ -1,13 +1,14 @@
-FROM gradle:8.14-jdk24 AS builder
+FROM eclipse-temurin:24-jdk-alpine AS builder
 WORKDIR /home/gradle/src
 
-COPY build.gradle.kts settings.gradle.kts ./
-COPY gradlew .
+RUN apk add --no-cache bash
+
+COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
-RUN gradle dependencies --no-daemon
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
 COPY . .
-RUN gradle clean build -x test --no-daemon
+RUN ./gradlew clean build -x test --no-daemon
 
 FROM eclipse-temurin:24-jre-alpine
 WORKDIR /app
