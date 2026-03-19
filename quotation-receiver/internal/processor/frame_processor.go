@@ -3,7 +3,6 @@ package processor
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
@@ -45,9 +44,6 @@ func (p *FrameProcessor) HandlePayload(payload []byte) error {
 		}
 
 		price := kopecksToRubles(priceKopecks)
-		log.Printf("driver frame raw=%s ticker=%s price_kopecks=%d price_rub=%.2f",
-			hex.EncodeToString(frame), tickerSymbol, priceKopecks, price)
-
 		eventJSON, err := ticker.SerializeEvent(tickerSymbol, price, time.Now())
 		if err != nil {
 			return fmt.Errorf("serialize ticker event: %w", err)
