@@ -26,7 +26,7 @@ data class Trade(
     @Column(nullable = false)
     var price: BigDecimal,
 
-    @Column(name = "total_amount", nullable = false)
+    @Column(name = "total_amount", insertable = false, updatable = false)
     var totalAmount: BigDecimal = BigDecimal.ZERO,
 
     @Column(name = "order_type")
