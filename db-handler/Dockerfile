@@ -8,14 +8,14 @@ COPY gradle gradle
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
 COPY . .
-RUN ./gradlew clean build -x test --no-daemon
+RUN chmod +x gradlew && ./gradlew clean build -x test --no-daemon
 
 FROM eclipse-temurin:24-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=builder /home/gradle/src/build/libs/*.jar app.jar
+COPY --from=builder /home/gradle/src/build/libs/db-handler-0.0.1-SNAPSHOT.jar app.jar
 RUN chown -R appuser:appgroup /app
 USER appuser
 
