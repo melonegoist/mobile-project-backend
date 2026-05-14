@@ -1,5 +1,6 @@
 package com.itmo.routing
 
+import com.itmo.auth.extractUserIdFromBearerToken
 import com.itmo.plugins.httpClient
 import com.itmo.websocket.WebSocketManager
 import io.ktor.client.request.*
@@ -10,9 +11,6 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import org.slf4j.LoggerFactory
 import java.time.Instant
 
@@ -113,18 +111,3 @@ private suspend fun proxyRequest(call: ApplicationCall, targetBase: String) {
     }
 }
 
-private fun extractUserIdFromBearerToken(authHeader: String?): String? {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) return null
-    return try {
-        val token = authHeader.removePrefix("Bearer ").trim()
-        val payloadB64 = token.split(".").getOrNull(1) ?: return null
-        val payload = java.util.Base64.getUrlDecoder()
-            .decode(payloadB64.padEnd((payloadB64.length + 3) / 4 * 4, '='))
-            .decodeToString()
-        val json = kotlinx.serialization.json.Json.parseToJsonElement(payload).jsonObject
-        json["userId"]?.jsonPrimitive?.contentOrNull
-            ?: json["sub"]?.jsonPrimitive?.contentOrNull
-    } catch (_: Exception) {
-        null
-    }
-}
